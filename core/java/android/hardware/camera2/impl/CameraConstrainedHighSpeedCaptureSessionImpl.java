@@ -24,6 +24,7 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CameraOfflineSession;
 import android.hardware.camera2.CameraOfflineSession.CameraOfflineSessionCallback;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.params.HighSpeedVideoConfiguration;
 import android.hardware.camera2.params.OutputConfiguration;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.hardware.camera2.utils.SurfaceUtils;
@@ -118,7 +119,7 @@ public class CameraConstrainedHighSpeedCaptureSessionImpl
         }
         Log.v(TAG, "previewFps: " + previewFps);
 
-        int requestListSize = fpsRange.getUpper() / previewFps;
+        int requestListSize = getHighSpeedRequestListSize(fpsRange, outputSurfaces);
         // If it's a preview, keep requestList size fixed = 1.
         if (fpsRange.getUpper() > fpsRange.getLower()) {
             requestListSize = 1;
@@ -202,6 +203,35 @@ public class CameraConstrainedHighSpeedCaptureSessionImpl
         }
         return true;
     }
+
+    private int getHighSpeedRequestListSize(Range<Integer> fpsRange, Collection<Surface> surfaces) {
+        int requestListSize = 0;
+
+        for (Surface surface : surfaces) {
+
+            if (SurfaceUtils.isSurfaceForHwVideoEncoder(surface)) {
+                Size surfaceSize = SurfaceUtils.getSurfaceSize(surface);
+                HighSpeedVideoConfiguration[] highSpeedVideoConfigurations =
+                    mCharacteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_HIGH_SPEED_VIDEO_CONFIGURATIONS);
+
+                // Get the batchsize for matching FPS & video size
+                for (HighSpeedVideoConfiguration config : highSpeedVideoConfigurations) {
+                    if (config.getSize().equals(surfaceSize) && config.getFpsRange().equals(fpsRange)) {
+                        requestListSize = config.getBatchSizeMax();
+                        break;
+                     }
+                }
+                break;
+            }
+        }
+
+        if (requestListSize == 0) {
+            // If cant' find the matching batch size,  limit the preview to 30fps.
+            requestListSize = fpsRange.getUpper() / 30;
+        }
+        return requestListSize;
+    }
+
 
     @Override
     public CameraDevice getDevice() {

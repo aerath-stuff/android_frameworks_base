@@ -19,6 +19,7 @@ package android.hardware.camera2.impl;
 import static com.android.internal.util.function.pooled.PooledLambda.obtainRunnable;
 
 import android.annotation.NonNull;
+import android.app.ActivityThread;
 import android.content.Context;
 import android.graphics.ImageFormat;
 import android.hardware.ICameraService;
@@ -53,6 +54,7 @@ import android.os.Looper;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
 import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.util.Log;
 import android.util.Range;
 import android.util.Size;
@@ -151,6 +153,7 @@ public class CameraDeviceImpl extends CameraDevice
     private int mNextSessionId = 0;
 
     private final int mAppTargetSdkVersion;
+    private boolean mPrivilegedApp = false;
 
     private ExecutorService mOfflineSwitchService;
     private CameraOfflineSessionImpl mOfflineSessionImpl;
@@ -301,10 +304,30 @@ public class CameraDeviceImpl extends CameraDevice
         } else {
             mTotalPartialCount = partialCount;
         }
+        mPrivilegedApp = checkPrivilegedAppList();
     }
 
     public CameraDeviceCallbacks getCallbacks() {
         return mCallbacks;
+    }
+
+    private boolean checkPrivilegedAppList() {
+        String packageName = ActivityThread.currentOpPackageName();
+        String packageList = SystemProperties.get("persist.vendor.camera.privapp.list");
+
+        if (packageList.length() > 0) {
+            for (String str : packageList.split(",")) {
+                if (packageName.equals(str)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isPrivilegedApp() {
+        return mPrivilegedApp;
     }
 
     /**
@@ -1540,11 +1563,19 @@ public class CameraDeviceImpl extends CameraDevice
                         inputConfig.getWidth() + "x" + inputConfig.getHeight() + " is not valid");
             }
         } else {
-            if (!checkInputConfigurationWithStreamConfigurations(inputConfig, /*maxRes*/false) &&
-                    !checkInputConfigurationWithStreamConfigurations(inputConfig, /*maxRes*/true)) {
-                throw new IllegalArgumentException("Input config with format " +
-                        inputFormat + " and size " + inputConfig.getWidth() + "x" +
-                        inputConfig.getHeight() + " not supported by camera id " + mCameraId);
+            if (isPrivilegedApp()) {
+                return;
+            }
+
+            boolean skipInputConfigCheck =
+                SystemProperties.getBoolean("persist.camera.skip_input_config_check", false);
+            if (!skipInputConfigCheck) {
+                if (!checkInputConfigurationWithStreamConfigurations(inputConfig, /*maxRes*/false) &&
+                      !checkInputConfigurationWithStreamConfigurations(inputConfig, /*maxRes*/true)) {
+                  throw new IllegalArgumentException("Input config with format " +
+                          inputFormat + " and size " + inputConfig.getWidth() + "x" +
+                          inputConfig.getHeight() + " not supported by camera id " + mCameraId);
+                }
             }
         }
     }
