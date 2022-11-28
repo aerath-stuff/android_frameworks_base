@@ -95,6 +95,7 @@ import android.content.pm.UserInfo;
 import android.content.pm.VersionedPackage;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelableException;
 import android.os.PatternMatcher;

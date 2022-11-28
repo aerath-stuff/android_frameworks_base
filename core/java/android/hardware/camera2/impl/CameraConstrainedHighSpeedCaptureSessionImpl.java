@@ -32,6 +32,7 @@ import android.os.Handler;
 import android.os.ConditionVariable;
 import android.util.Range;
 import android.util.Log;
+import android.util.Size;
 import android.view.Surface;
 
 import java.util.ArrayList;
