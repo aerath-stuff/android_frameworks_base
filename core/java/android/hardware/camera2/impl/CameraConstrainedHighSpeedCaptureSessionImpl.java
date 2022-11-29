@@ -120,7 +120,7 @@ public class CameraConstrainedHighSpeedCaptureSessionImpl
         }
         Log.v(TAG, "previewFps: " + previewFps);
 
-        int requestListSize = getHighSpeedRequestListSize(fpsRange, outputSurfaces);
+        int requestListSize = getHighSpeedRequestListSize(fpsRange, outputSurfaces, previewFps);
         // If it's a preview, keep requestList size fixed = 1.
         if (fpsRange.getUpper() > fpsRange.getLower()) {
             requestListSize = 1;
@@ -205,7 +205,7 @@ public class CameraConstrainedHighSpeedCaptureSessionImpl
         return true;
     }
 
-    private int getHighSpeedRequestListSize(Range<Integer> fpsRange, Collection<Surface> surfaces) {
+    private int getHighSpeedRequestListSize(Range<Integer> fpsRange, Collection<Surface> surfaces, int fallbackFps) {
         int requestListSize = 0;
 
         for (Surface surface : surfaces) {
@@ -227,8 +227,8 @@ public class CameraConstrainedHighSpeedCaptureSessionImpl
         }
 
         if (requestListSize == 0) {
-            // If cant' find the matching batch size,  limit the preview to 30fps.
-            requestListSize = fpsRange.getUpper() / 30;
+            // If cant' find the matching batch size,  limit the preview to fallback value.
+            requestListSize = fpsRange.getUpper() / fallbackFps;
         }
         return requestListSize;
     }
